@@ -114,7 +114,7 @@ client.once('ready', async () => {
 async function getCoinList() {
   try {
     const res = await axios.get('https://indodax.com/api/summaries');
-    const tickers = res.data; // response langsung object tickers
+    const tickers = res.data.tickers; // response langsung object tickers
     const coins = Object.keys(tickers); // ['btc_idr', 'eth_idr', ...]
     return coins;
   } catch (err) {
