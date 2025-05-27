@@ -162,24 +162,27 @@ client.on('messageCreate', async (message) => {
   }
 
   if (command === 'coinlist') {
-    // Tampilkan list coin dan emoji
-    let listMessage = '**Daftar Coin yang tersedia:**\n';
     const coinsList = await getCoinList();
-    if (coins.length === 0) {
+    if (coinsList.length === 0) {
       return message.reply('Gagal mengambil daftar coin dari Indodax.');
     }
-    // // Kirim list coin ke channel (batasi supaya ga terlalu panjang)
-    // const chunkSize = 20;
-    // for (let i = 0; i < coins.length; i += chunkSize) {
-    //   const chunk = coins.slice(i, i + chunkSize);
-    //   await message.channel.send(chunk.join(', '));
-    // }
-    for (const coinKey of coinsList) {
-      const coin = coinKey.toUpperCase().replace('_IDR', '');
-      listMessage += `🪙 ${coin}\n`;
+  
+    const chunkSize = 50; // Jumlah coin per pesan
+    const chunks = [];
+  
+    for (let i = 0; i < coinsList.length; i += chunkSize) {
+      const chunk = coinsList.slice(i, i + chunkSize);
+      let listMessage = chunk.map(c => `🪙 ${c.replace('_idr', '').toUpperCase()}`).join('\n');
+      chunks.push(listMessage);
     }
-    await message.reply(listMessage);
+  
+    await message.reply('Berikut adalah daftar coin yang tersedia di Indodax:');
+  
+    for (const chunk of chunks) {
+      await message.channel.send(chunk);
+    }
   }
+  
 });
 
 client.login(TOKEN);
