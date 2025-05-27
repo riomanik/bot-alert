@@ -6,7 +6,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,  // perlu agar bisa baca message content
+    GatewayIntentBits.MessageContent,
   ]
 });
 
@@ -25,7 +25,6 @@ const coins = [
   'h2o_idr'
 ];
 
-// Emoji per coin biar lebih menarik
 const coinEmojis = {
   BTC: '🟠',
   ETH: '🔷',
@@ -38,14 +37,14 @@ const coinEmojis = {
 };
 
 const thresholds = {
-  BTC: { high: 1800000000, low: 1720000000, colorHigh: '#28a745', colorLow: '#dc3545', colorMid: '#ffc107' },
-  ETH: { high: 44000000, low: 40000000, colorHigh: '#28a745', colorLow: '#dc3545', colorMid: '#ffc107' },
-  USDT: { high: 17000, low: 15000, colorHigh: '#28a745', colorLow: '#dc3545', colorMid: '#ffc107' },
-  ALPACA: { high: 2500, low: 1000, colorHigh: '#28a745', colorLow: '#dc3545', colorMid: '#ffc107' },
-  HEDG: { high: 1500, low: 1000, colorHigh: '#28a745', colorLow: '#dc3545', colorMid: '#ffc107' },
-  PEPE: { high: 0.25, low: 0.20, colorHigh: '#28a745', colorLow: '#dc3545', colorMid: '#ffc107' },
-  MOODENG: { high: 4500, low: 3800, colorHigh: '#28a745', colorLow: '#dc3545', colorMid: '#ffc107' },
-  H2O: { high: 6000, low: 5000, colorHigh: '#28a745', colorLow: '#dc3545', colorMid: '#ffc107' }
+  BTC: { high: 1800000000, low: 1720000000 },
+  ETH: { high: 44000000, low: 40000000 },
+  USDT: { high: 17000, low: 15000 },
+  ALPACA: { high: 2500, low: 1000 },
+  HEDG: { high: 1500, low: 1000 },
+  PEPE: { high: 0.25, low: 0.20 },
+  MOODENG: { high: 4500, low: 3800 },
+  H2O: { high: 6000, low: 5000 }
 };
 
 function getTrendEmoji(price, coin) {
@@ -57,37 +56,21 @@ function getTrendEmoji(price, coin) {
   return '➡️';
 }
 
-function getEmbedColor(prices) {
-  const btcPrice = prices['btc_idr'];
-  if (!btcPrice) return '#00bfff'; // default biru
-
-  const { high, low, colorHigh, colorLow, colorMid } = thresholds['BTC'];
-  if (btcPrice > high) return colorHigh;
-  if (btcPrice < low) return colorLow;
-  return colorMid;
-}
-
-async function fetchPrices() {
+async function fetchPrices(channel) {
   const prices = {};
-  await Promise.all(coins.map(async (coin) => {
+
+  for (const coin of coins) {
     try {
       const res = await axios.get(`https://indodax.com/api/${coin}/ticker`);
       prices[coin] = parseFloat(res.data.ticker.last);
     } catch (err) {
       console.error(`Gagal fetch harga ${coin}:`, err.message);
-      prices[coin] = null;
     }
-  }));
-  return prices;
-}
-
-async function sendPriceUpdate(channel) {
-  const prices = await fetchPrices();
-  const embedColor = getEmbedColor(prices);
+  }
 
   const embed = new EmbedBuilder()
     .setTitle('🚨 Harga Crypto Terupdate dari Indodax 🚨')
-    .setColor(embedColor)
+    .setColor('#00bfff')
     .setDescription('Pantau pergerakan harga cryptocurrency favoritmu secara real-time!')
     .setFooter({ text: 'Data dari Indodax | Update tiap jam' })
     .setTimestamp();
@@ -95,20 +78,17 @@ async function sendPriceUpdate(channel) {
   for (const [coinKey, price] of Object.entries(prices)) {
     const coin = coinKey.toUpperCase().replace('_IDR', '');
     const emoji = coinEmojis[coin] || '❓';
-    const trend = price ? getTrendEmoji(price, coin) : '❌';
+    const trend = getTrendEmoji(price, coin);
 
-    const formattedPrice = price
-      ? new Intl.NumberFormat('id-ID', {
-          style: 'currency',
-          currency: 'IDR',
-          minimumFractionDigits: coin === 'PEPE' ? 4 : 0,
-          maximumFractionDigits: coin === 'PEPE' ? 4 : 0
-        }).format(price)
-      : 'Gagal ambil harga';
+    const formattedPrice = new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: coin === 'PEPE' ? 2 : 0
+    }).format(price);
 
     embed.addFields({
       name: `${emoji} ${coin} ${trend}`,
-      value: formattedPrice,
+      value: `${formattedPrice}`,
       inline: true
     });
   }
@@ -116,75 +96,67 @@ async function sendPriceUpdate(channel) {
   await channel.send({ embeds: [embed] });
 }
 
-async function getSingleCoinPrice(coinKey) {
-  const coinKeyLower = coinKey.toLowerCase();
-  if (!coins.includes(`${coinKeyLower}_idr`)) {
-    return null;
-  }
-  try {
-    const res = await axios.get(`https://indodax.com/api/${coinKeyLower}_idr/ticker`);
-    const price = parseFloat(res.data.ticker.last);
-    return price;
-  } catch {
-    return null;
-  }
-}
-
 client.once('ready', async () => {
   console.log(`✅ Bot aktif sebagai ${client.user.tag}`);
 
   const channel = await client.channels.fetch(CHANNEL_ID).catch(() => null);
+
   if (!channel) {
     console.error('❌ Channel tidak ditemukan!');
     return;
   }
 
-  await sendPriceUpdate(channel);
-  setInterval(() => sendPriceUpdate(channel), 3600000);
+  await fetchPrices(channel);
+  setInterval(() => fetchPrices(channel), 3600000); // update tiap jam
 });
 
-client.on(Events.MessageCreate, async (message) => {
+client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   if (!message.content.startsWith(PREFIX)) return;
 
-  const args = message.content.slice(PREFIX.length).trim().split(/\s+/);
+  const args = message.content.slice(PREFIX.length).trim().split(/ +/);
   const command = args.shift().toLowerCase();
 
-  if (command === 'price') {
-    if (args.length === 0) {
-      return message.reply('Tolong ketik nama coin, contoh: `!price btc`');
+  if (command === 'coin') {
+    if (!args.length) {
+      return message.reply('Tolong ketik nama coin, misal: !price btc');
     }
 
-    const coinKey = args[0].toLowerCase();
-
-    if (!coins.includes(`${coinKey}_idr`)) {
+    const coinKeyRaw = args[0].toLowerCase();
+    // Map input ke nama coins array, contoh: btc -> btc_idr
+    const coinKey = coins.find(c => c.startsWith(coinKeyRaw));
+    if (!coinKey) {
       return message.reply('Coin tidak ditemukan, coba btc, eth, usdt, dll');
     }
 
-    const price = await getSingleCoinPrice(coinKey);
+    try {
+      const res = await axios.get(`https://indodax.com/api/${coinKey}/ticker`);
+      const price = parseFloat(res.data.ticker.last);
+      const coin = coinKey.toUpperCase().replace('_IDR', '');
+      const formattedPrice = new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: coin === 'PEPE' ? 2 : 0
+      }).format(price);
 
-    if (!price) {
-      return message.reply(`Gagal mengambil harga untuk ${coinKey.toUpperCase()}`);
+      const emoji = coinEmojis[coin] || '';
+      const trend = getTrendEmoji(price, coin);
+
+      await message.reply(`${emoji} Harga ${coin} sekarang: ${formattedPrice} ${trend}`);
+    } catch {
+      await message.reply('Gagal mengambil harga, coba lagi nanti.');
     }
+  }
 
-    const formattedPrice = new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: coinKey === 'pepe' ? 4 : 0,
-      maximumFractionDigits: coinKey === 'pepe' ? 4 : 0
-    }).format(price);
-
-    const emoji = coinEmojis[coinKey.toUpperCase()] || '❓';
-    const trend = getTrendEmoji(price, coinKey.toUpperCase());
-
-    // Kirim embed sederhana untuk command
-    const embed = new EmbedBuilder()
-      .setTitle(`${emoji} Harga ${coinKey.toUpperCase()}`)
-      .setDescription(`${formattedPrice} ${trend}`)
-      .setColor('#00bfff')
-      .setTimestamp();
-
-    await message.reply({ embeds: [embed] });
+  if (command === 'coinlist') {
+    // Tampilkan list coin dan emoji
+    let listMessage = '**Daftar Coin yang tersedia:**\n';
+    for (const coinKey of coins) {
+      const coin = coinKey.toUpperCase().replace('_IDR', '');
+      const emoji = coinEmojis[coin] || '';
+      listMessage += `${emoji} ${coin}\n`;
+    }
+    await message.reply(listMessage);
   }
 });
 
