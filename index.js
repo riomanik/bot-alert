@@ -49,7 +49,7 @@ const coins = [
   'h2o_idr'
 ];
 
-async function fetchPrices() {
+async function fetchPrices(channel) {
   const prices = {};
 
   for (const coin of coins) {
