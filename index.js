@@ -137,13 +137,13 @@ client.on('messageCreate', async (message) => {
 
     const coinKeyRaw = args[0].toLowerCase();
     // Map input ke nama coins array, contoh: btc -> btc_idr
-    const coinKey = coins.find(c => c.startsWith(coinKeyRaw));
-    if (!coinKey) {
-      return message.reply('Coin tidak ditemukan, coba btc, eth, usdt, dll');
-    }
+    // const coinKey = coins.find(c => c.startsWith(coinKeyRaw));
+    // if (!coinKey) {
+    //   return message.reply('Coin tidak ditemukan, coba btc, eth, usdt, dll');
+    // }
 
     try {
-      const res = await axios.get(`https://indodax.com/api/${coinKey}/ticker`);
+      const res = await axios.get(`https://indodax.com/api/${coinKeyRaw}/ticker`);
       const price = parseFloat(res.data.ticker.last);
       const coin = coinKey.toUpperCase().replace('_IDR', '');
       const formattedPrice = new Intl.NumberFormat('id-ID', {
