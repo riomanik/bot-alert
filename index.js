@@ -110,6 +110,19 @@ client.once('ready', async () => {
   setInterval(() => fetchPrices(channel), 3600000); // update tiap jam
 });
 
+// Fungsi ambil list coin dari Indodax
+async function getCoinList() {
+  try {
+    const res = await axios.get('https://indodax.com/api/summaries');
+    const tickers = res.data; // response langsung object tickers
+    const coins = Object.keys(tickers); // ['btc_idr', 'eth_idr', ...]
+    return coins;
+  } catch (err) {
+    console.error('Gagal ambil list coin:', err.message);
+    return [];
+  }
+}
+
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   if (!message.content.startsWith(PREFIX)) return;
@@ -151,10 +164,19 @@ client.on('messageCreate', async (message) => {
   if (command === 'coinlist') {
     // Tampilkan list coin dan emoji
     let listMessage = '**Daftar Coin yang tersedia:**\n';
-    for (const coinKey of coins) {
+    const coinsList = await getCoinList();
+    if (coins.length === 0) {
+      return message.reply('Gagal mengambil daftar coin dari Indodax.');
+    }
+    // // Kirim list coin ke channel (batasi supaya ga terlalu panjang)
+    // const chunkSize = 20;
+    // for (let i = 0; i < coins.length; i += chunkSize) {
+    //   const chunk = coins.slice(i, i + chunkSize);
+    //   await message.channel.send(chunk.join(', '));
+    // }
+    for (const coinKey of coinsList) {
       const coin = coinKey.toUpperCase().replace('_IDR', '');
-      const emoji = coinEmojis[coin] || '';
-      listMessage += `${emoji} ${coin}\n`;
+      listMessage += `🪙 ${coin}\n`;
     }
     await message.reply(listMessage);
   }
