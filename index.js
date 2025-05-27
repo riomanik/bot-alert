@@ -158,6 +158,7 @@ client.on('messageCreate', async (message) => {
 
       await message.reply(`${emoji} Harga ${coin} sekarang: ${formattedPrice} ${trend}`);
     } catch {
+      console.log(`Gagal fetch harga ${coinKeyRaw}: https://indodax.com/api/${coinKeyRaw}/ticker `);
       await message.reply('Gagal mengambil harga, coba lagi nanti.');
     }
   }
