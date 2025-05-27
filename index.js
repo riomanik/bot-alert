@@ -146,7 +146,7 @@ client.on('messageCreate', async (message) => {
       const res = await axios.get(`https://indodax.com/api/${coinKeyRaw}/ticker`);
       console.log(`Gagal fetch harga ${coinKeyRaw}: https://indodax.com/api/${coinKeyRaw}/ticker `);
       const price = parseFloat(res.data.ticker.last);
-      const coin = coinKey.toUpperCase().replace('_IDR', '');
+      const coin = coinKeyRaw.toUpperCase().replace('_IDR', '');
       const formattedPrice = new Intl.NumberFormat('id-ID', {
         style: 'currency',
         currency: 'IDR',
