@@ -161,48 +161,69 @@ client.on('messageCreate', async (message) => {
     }
   }
 
-  if (command === 'coinlist') {
-    const coinsList = await getCoinList();
-  if (coinsList.length === 0) {
-    return message.reply('Gagal mengambil daftar coin dari Indodax.');
-  }
-
-  let page = 0;
-  const pageSize = 20;
-  const maxPage = Math.ceil(coinsList.length / pageSize);
-
-  const generatePageEmbed = (page) => {
-    const start = page * pageSize;
-    const chunk = coinsList.slice(start, start + pageSize);
-    const content = chunk.map(c => `🪙 ${c.replace('_idr', '').toUpperCase()}`).join('\n');
-
-    return new EmbedBuilder()
-      .setTitle(`📄 Daftar Coin Indodax (Halaman ${page + 1}/${maxPage})`)
-      .setDescription(content)
-      .setColor('#00bfff');
-  };
-
-  const nextButton = new ButtonBuilder()
-    .setCustomId('next')
-    .setLabel('Next ➡️')
-    .setStyle(ButtonStyle.Primary);
-
-  const row = new ActionRowBuilder().addComponents(nextButton);
-
-  const msg = await message.reply({ embeds: [generatePageEmbed(page)], components: [row] });
-
-  const collector = msg.createMessageComponentCollector({ time: 60000 }); // aktif selama 60 detik
-
-  collector.on('collect', async i => {
-    if (i.customId === 'next') {
-      page = (page + 1) % maxPage;
-      await i.update({ embeds: [generatePageEmbed(page)], components: [row] });
+  if (command === 'coinlist') {const coinsList = await getCoinList();
+    if (coinsList.length === 0) {
+      return message.reply('Gagal mengambil daftar coin dari Indodax.');
     }
-  });
-
-  collector.on('end', async () => {
-    await msg.edit({ components: [] }); // disable tombol setelah waktu habis
-  });
+  
+    let page = 0;
+    const pageSize = 20;
+    const maxPage = Math.ceil(coinsList.length / pageSize);
+  
+    const generatePageEmbed = (page) => {
+      const start = page * pageSize;
+      const chunk = coinsList.slice(start, start + pageSize);
+      const content = chunk.map(c => `🪙 ${c.replace('_idr', '').toUpperCase()}`).join('\n');
+  
+      return new EmbedBuilder()
+        .setTitle(`📄 Daftar Coin Indodax (Halaman ${page + 1}/${maxPage})`)
+        .setDescription(content)
+        .setColor('#00bfff');
+    };
+  
+    const getButtons = () => {
+      const prevButton = new ButtonBuilder()
+        .setCustomId('prev')
+        .setLabel('⬅️ Sebelumnya')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(page === 0); // disable jika halaman pertama
+  
+      const nextButton = new ButtonBuilder()
+        .setCustomId('next')
+        .setLabel('Berikutnya ➡️')
+        .setStyle(ButtonStyle.Primary)
+        .setDisabled(page === maxPage - 1); // disable jika halaman terakhir
+  
+      return new ActionRowBuilder().addComponents(prevButton, nextButton);
+    };
+  
+    const msg = await message.reply({
+      embeds: [generatePageEmbed(page)],
+      components: [getButtons()]
+    });
+  
+    const collector = msg.createMessageComponentCollector({ time: 60000 });
+  
+    collector.on('collect', async (interaction) => {
+      if (interaction.user.id !== message.author.id) {
+        return interaction.reply({ content: 'Command ini hanya untuk pengirim aslinya.', ephemeral: true });
+      }
+  
+      if (interaction.customId === 'next') {
+        if (page < maxPage - 1) page++;
+      } else if (interaction.customId === 'prev') {
+        if (page > 0) page--;
+      }
+  
+      await interaction.update({
+        embeds: [generatePageEmbed(page)],
+        components: [getButtons()]
+      });
+    });
+  
+    collector.on('end', async () => {
+      await msg.edit({ components: [] });
+    });
   }
   
 });
