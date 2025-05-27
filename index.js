@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, EmbedBuilder, Events } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, Events, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const axios = require('axios');
 
 const client = new Client({
@@ -163,24 +163,46 @@ client.on('messageCreate', async (message) => {
 
   if (command === 'coinlist') {
     const coinsList = await getCoinList();
-    if (coinsList.length === 0) {
-      return message.reply('Gagal mengambil daftar coin dari Indodax.');
+  if (coinsList.length === 0) {
+    return message.reply('Gagal mengambil daftar coin dari Indodax.');
+  }
+
+  let page = 0;
+  const pageSize = 20;
+  const maxPage = Math.ceil(coinsList.length / pageSize);
+
+  const generatePageEmbed = (page) => {
+    const start = page * pageSize;
+    const chunk = coinsList.slice(start, start + pageSize);
+    const content = chunk.map(c => `🪙 ${c.replace('_idr', '').toUpperCase()}`).join('\n');
+
+    return new EmbedBuilder()
+      .setTitle(`📄 Daftar Coin Indodax (Halaman ${page + 1}/${maxPage})`)
+      .setDescription(content)
+      .setColor('#00bfff');
+  };
+
+  const nextButton = new ButtonBuilder()
+    .setCustomId('next')
+    .setLabel('Next ➡️')
+    .setStyle(ButtonStyle.Primary);
+
+  const row = new ActionRowBuilder().addComponents(nextButton);
+
+  const msg = await message.reply({ embeds: [generatePageEmbed(page)], components: [row] });
+
+  const collector = msg.createMessageComponentCollector({ time: 60000 }); // aktif selama 60 detik
+
+  collector.on('collect', async i => {
+    if (i.customId === 'next') {
+      page = (page + 1) % maxPage;
+      await i.update({ embeds: [generatePageEmbed(page)], components: [row] });
     }
-  
-    const chunkSize = 50; // Jumlah coin per pesan
-    const chunks = [];
-  
-    for (let i = 0; i < coinsList.length; i += chunkSize) {
-      const chunk = coinsList.slice(i, i + chunkSize);
-      let listMessage = chunk.map(c => `🪙 ${c.replace('_idr', '').toUpperCase()}`).join('\n');
-      chunks.push(listMessage);
-    }
-  
-    await message.reply('Berikut adalah daftar coin yang tersedia di Indodax:');
-  
-    for (const chunk of chunks) {
-      await message.channel.send(chunk);
-    }
+  });
+
+  collector.on('end', async () => {
+    await msg.edit({ components: [] }); // disable tombol setelah waktu habis
+  });
   }
   
 });
