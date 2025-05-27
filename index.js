@@ -135,7 +135,10 @@ client.on('messageCreate', async (message) => {
       return message.reply('Tolong ketik nama coin, misal: !price btc');
     }
 
-    const coinKeyRaw = args[0].toLowerCase();
+    let coinKeyRaw = args[0].toLowerCase();
+    if (!coinKeyRaw.endsWith('_idr')) {
+      coinKeyRaw += '_idr';
+    }
     // Map input ke nama coins array, contoh: btc -> btc_idr
     // const coinKey = coins.find(c => c.startsWith(coinKeyRaw));
     // if (!coinKey) {
